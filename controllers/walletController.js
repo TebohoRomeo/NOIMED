@@ -1,16 +1,32 @@
 import pool from '../config/db.js';
 
-export const getWallet = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const result = await pool.query(
-      'SELECT * FROM wallets WHERE user_id = $1',
-      [userId]
-    );
+import { getWallet, updateWalletBalance } from '../models/Wallet.js';
+import { recordTransaction } from '../models/Transaction.js';
 
-    res.json({ wallet: result.rows[0] });
+export const getUserWallet = async (req, res) => {
+  try {
+    const wallet = await getWallet(req.user.userId);
+    res.json({ wallet });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Could not fetch wallet' });
+  }
+};
+
+export const topUpWallet = async (req, res) => {
+  const { amount } = req.body;
+  const userId = req.user.userId;
+
+  if (!amount || isNaN(amount)) {
+    return res.status(400).json({ message: 'Invalid top-up amount' });
+  }
+
+  try {
+    await updateWalletBalance(userId, amount);
+    await recordTransaction(userId, amount, 'topup');
+    res.json({ message: 'Top-up successful' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Top-up failed' });
   }
 };

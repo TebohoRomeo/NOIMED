@@ -1,28 +1,24 @@
 import pool from '../config/db.js';
+import {
+  submitCardApplication,
+  getUserApplication
+} from '../models/CardApplication.js';
 
-export const submitApplication = async (req, res) => {
+export const applyForCard = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const idDocument = req.file.path;
+    const existing = await getUserApplication(userId);
 
-    // Check for existing application
-    const existing = await pool.query(
-      'SELECT * FROM card_applications WHERE user_id = $1',
-      [userId]
-    );
-    if (existing.rows.length > 0) {
+    if (existing) {
       return res.status(400).json({ message: 'Application already submitted' });
     }
 
-    const result = await pool.query(
-      `INSERT INTO card_applications (user_id, id_document)
-       VALUES ($1, $2) RETURNING *`,
-      [userId, idDocument]
-    );
+    const filePath = req.file.path;
+    const application = await submitCardApplication(userId, filePath);
 
-    res.status(201).json({ application: result.rows[0] });
+    res.status(201).json({ application });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Card application failed' });
   }
 };
